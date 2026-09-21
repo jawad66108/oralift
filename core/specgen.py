@@ -2,10 +2,15 @@
 specgen.py
 ----------
 Generates a plain-English spec for one PL/SQL unit at a time, via a
-single Anthropic API call per unit. Prompt template lives in
-prompts/spec.md so it can be tuned without touching this file.
+single Groq API call per unit. Prompt template lives in prompts/spec.md
+so it can be tuned without touching this file.
 
-Requires ANTHROPIC_API_KEY in the environment. If it's missing, spec
+Groq's API is OpenAI-compatible (same request/response shape), so
+this uses the `openai` SDK pointed at Groq's base URL rather than a
+separate groq-specific package -- one less dependency, and it means
+switching providers again later is a one-parameter change.
+
+Requires GROQ_API_KEY in the environment. If it's missing, spec
 generation is skipped with a clear message rather than crashing the
 whole app -- the rest of OraLift's pipeline (extraction, graph, risk
 scan) works with zero API keys, and specs are the one stage that
@@ -19,7 +24,8 @@ from pathlib import Path
 
 from core.extractor import Unit
 
-_DEFAULT_MODEL = "claude-sonnet-5"
+_DEFAULT_MODEL = "llama-3.3-70b-versatile"  # Groq's general-purpose text model
+_GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 _PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "spec.md"
 
 
@@ -63,38 +69,37 @@ def _render_prompt(unit: Unit) -> str:
 def generate_spec(unit: Unit, model: str = _DEFAULT_MODEL, api_key: str | None = None) -> str:
     """One LLM call, returns the plain-English spec as markdown text.
 
-    Raises SpecGenError if ANTHROPIC_API_KEY is not set or the API
-    call fails -- callers (app.py) should catch this and show a
-    graceful message rather than letting the whole page crash.
+    Raises SpecGenError if GROQ_API_KEY is not set or the API call
+    fails -- callers (app.py) should catch this and show a graceful
+    message rather than letting the whole page crash.
     """
-    key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+    key = api_key or os.environ.get("GROQ_API_KEY")
     if not key:
         raise SpecGenError(
-            "ANTHROPIC_API_KEY is not set. Export it before running the app "
-            "(export ANTHROPIC_API_KEY=sk-ant-...) to enable spec generation."
+            "GROQ_API_KEY is not set. Export it before running the app "
+            "(export GROQ_API_KEY=gsk_...) to enable spec generation."
         )
 
     try:
-        import anthropic
+        import openai
     except ImportError as e:
         raise SpecGenError(
-            "The 'anthropic' package is not installed. Run: pip install anthropic"
+            "The 'openai' package is not installed. Run: pip install openai"
         ) from e
 
-    client = anthropic.Anthropic(api_key=key)
+    client = openai.OpenAI(api_key=key, base_url=_GROQ_BASE_URL)
     prompt = _render_prompt(unit)
 
     try:
-        response = client.messages.create(
+        response = client.chat.completions.create(
             model=model,
             max_tokens=1000,
             messages=[{"role": "user", "content": prompt}],
         )
-    except anthropic.APIError as e:
-        raise SpecGenError(f"Anthropic API call failed: {e}") from e
+    except openai.APIError as e:
+        raise SpecGenError(f"Groq API call failed: {e}") from e
 
-    text_parts = [block.text for block in response.content if getattr(block, "type", None) == "text"]
-    return "\n".join(text_parts).strip()
+    return (response.choices[0].message.content or "").strip()
 
 
 def generate_specs_cached(units: list[Unit], cache: dict, model: str = _DEFAULT_MODEL) -> dict[str, str]:

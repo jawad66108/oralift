@@ -47,18 +47,25 @@ with st.sidebar:
     )
     use_sample = st.checkbox("Use bundled sample (samples/legacy_hr_package.sql)", value=not uploaded)
     st.divider()
-    st.header("Spec generation")
-    api_key_input = st.text_input(
-        "Anthropic API key", type="password",
-        value=os.environ.get("ANTHROPIC_API_KEY", ""),
-        help="Only used for the Specs tab. Leave blank and set ANTHROPIC_API_KEY "
-             "as an environment variable instead if you don't want to paste it here.",
-    )
-    if api_key_input:
-        os.environ["ANTHROPIC_API_KEY"] = api_key_input
-    st.divider()
-    st.caption("Built with IBM Bob 2.0 -- Architect Mode for planning, Code Mode for implementation.")
 
+
+    st.header("Spec generation")
+
+    
+    api_key_input = st.text_input(
+    "Groq API key", type="password",
+    value=os.environ.get("GROQ_API_KEY", ""),
+    help="Only used for the Specs tab. Leave blank and set GROQ_API_KEY "
+         "as an environment variable instead if you don't want to paste it here.",
+)
+if api_key_input:
+    os.environ["GROQ_API_KEY"] = api_key_input
+
+
+
+
+    st.divider()
+st.caption("Submitted for the IBM Bob 2.0 Hackathon · lablab.ai, September 2026")
 
 def _load_sources() -> dict[str, str]:
     """Returns {filename: sql_text} for whatever the user gave us."""
@@ -146,10 +153,13 @@ with tab_graph:
                    "These units can't be migrated one at a time without breaking the cycle.")
 
     mermaid_src = to_mermaid(graph, risk_units=risky_unit_names)
-    components.html(to_mermaid_html(mermaid_src, height=400), height=420, scrolling=True)
+try:
+    import streamlit_mermaid as stmd
+    stmd.st_mermaid(mermaid_src, height="400px")
+except Exception as e:
+    st.warning(f"Diagram rendering failed ({e}); showing raw Mermaid source instead.")
+    st.code(mermaid_src, language="mermaid")
 
-    with st.expander("Mermaid source"):
-        st.code(mermaid_src, language="mermaid")
 
 # ---------------------------------------------------------------------
 # Specs tab (real -- core/specgen.py, one LLM call per unit, cached
