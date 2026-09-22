@@ -24,7 +24,7 @@ from pathlib import Path
 
 from core.extractor import Unit
 
-_DEFAULT_MODEL = "llama-3.3-70b-versatile"  # Groq's general-purpose text model
+_DEFAULT_MODEL = "openai/gpt-oss-120b"  # Groq's general-purpose text model
 _GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 _PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "spec.md"
 
