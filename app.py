@@ -177,29 +177,27 @@ with tab_specs:
     selected = st.selectbox("Choose a unit", [u.name for u in all_units])
     unit = next(u for u in all_units if u.name == selected)
 
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        st.markdown(f"**{unit.unit_type} {unit.name}**")
-        st.code(unit.body[:2000], language="sql")
+    st.markdown(f"**{unit.unit_type} {unit.name}**")
+st.code(unit.body[:2000], language="sql")
 
-    with col2:
-        cache_key = (unit.name, hash(unit.body))
-        cache = st.session_state["spec_cache"]
+cache_key = (unit.name, hash(unit.body))
+cache = st.session_state["spec_cache"]
 
-        if cache_key in cache:
-            spec_text = cache[cache_key]
-        elif st.button(f"Generate spec for {unit.name}"):
-            with st.spinner("Calling the LLM..."):
-                results = generate_specs_cached([unit], cache)
-                spec_text = results[unit.name]
-        else:
-            spec_text = None
+if cache_key in cache:
+    spec_text = cache[cache_key]
+elif st.button(f"Generate spec for {unit.name}"):
+    with st.spinner("Calling the LLM..."):
+        results = generate_specs_cached([unit], cache)
+        spec_text = results[unit.name]
+else:
+    spec_text = None
 
-        if spec_text:
-            if spec_text.startswith("ERROR:"):
-                st.error(spec_text)
-            else:
-                st.markdown(spec_text)
+if spec_text:
+    st.divider()
+    if spec_text.startswith("ERROR:"):
+        st.error(spec_text)
+    else:
+        st.markdown(spec_text)
 
 # ---------------------------------------------------------------------
 # Scaffold tab (real -- core/scaffold.py)
